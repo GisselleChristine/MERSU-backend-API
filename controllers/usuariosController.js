@@ -1,38 +1,55 @@
 const connection = require('../config/db');
 
-// Validación de contraseña
-const validarPassword = (password) => {
-    const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[+\-_$.])[A-Za-z\d+\-_$.]{8,}$/;
-    return regex.test(password);
-};
-
-// REGISTRO
+/* =========================
+   REGISTRAR USUARIO
+========================= */
 const registrarUsuario = (req, res) => {
-    const { nombre_usuario, correo, contrasena, id_rol, id_perfil } = req.body;
+    const {
+        nombre_usuario,
+        apellido,
+        fecha_nacimiento,
+        usuario,
+        correo,
+        contrasena,
+        id_rol,
+        id_perfil
+    } = req.body;
 
-    if (!nombre_usuario || !correo || !contrasena) {
-        return res.status(400).json({ mensaje: "Datos incompletos" });
-    }
-
-    if (!validarPassword(contrasena)) {
+    if (!nombre_usuario || !usuario || !correo || !contrasena) {
         return res.status(400).json({
-            mensaje: "Contraseña inválida"
+            ok: false,
+            mensaje: "Datos incompletos"
         });
     }
 
     const sql = `
-        INSERT INTO usuario (nombre_usuario, correo, contrasena, id_rol, id_perfil, fecha_registro)
-        VALUES (?, ?, ?, ?, ?, NOW())
+        INSERT INTO usuario 
+        (nombre_usuario, apellido, fecha_nacimiento, usuario, correo, contrasena, id_rol, id_perfil, fecha_registro)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())
     `;
 
-    connection.query(sql,
-        [nombre_usuario, correo, contrasena, id_rol, id_perfil],
+    connection.query(
+        sql,
+        [
+            nombre_usuario,
+            apellido || null,
+            fecha_nacimiento || null,
+            usuario,
+            correo,
+            contrasena,
+            id_rol || 1,
+            id_perfil || 1
+        ],
         (err, result) => {
             if (err) {
-                return res.status(500).json({ mensaje: "Error en servidor" });
+                return res.status(500).json({
+                    ok: false,
+                    mensaje: err.sqlMessage || "Error al registrar usuario"
+                });
             }
 
             return res.status(201).json({
+                ok: true,
                 mensaje: "Usuario registrado correctamente",
                 id: result.insertId
             });
@@ -40,24 +57,33 @@ const registrarUsuario = (req, res) => {
     );
 };
 
-// LOGIN
-const loginUsuario = (req, res) => {
-    const { correo, contrasena } = req.body;
 
-    if (!correo || !contrasena) {
+/* =========================
+   LOGIN USUARIO
+========================= */
+const loginUsuario = (req, res) => {
+    const { usuario, nombre_usuario, contrasena } = req.body;
+
+    console.log("BODY RECIBIDO:", req.body);
+
+    // Compatibilidad: acepta ambos nombres, en lo que se arregla las columnas de la tabla usuario.
+    const login = usuario || nombre_usuario;
+
+    if (!login || !contrasena) {
         return res.status(400).json({
             ok: false,
-            mensaje: "Correo y contraseña son obligatorios"
+            mensaje: "Usuario y contraseña son obligatorios"
         });
     }
 
     const sql = `
-        SELECT id_usuario, nombre_usuario, correo, contrasena
+        SELECT id_usuario, nombre_usuario, usuario, correo, contrasena
         FROM usuario
-        WHERE correo = ?
+        WHERE usuario = ?
+        LIMIT 1
     `;
 
-    connection.query(sql, [correo], (err, results) => {
+    connection.query(sql, [login], (err, results) => {
         if (err) {
             return res.status(500).json({
                 ok: false,
@@ -72,9 +98,9 @@ const loginUsuario = (req, res) => {
             });
         }
 
-        const usuario = results[0];
+        const user = results[0];
 
-        if (usuario.contrasena !== contrasena) {
+        if (user.contrasena !== contrasena) {
             return res.status(401).json({
                 ok: false,
                 mensaje: "Contraseña incorrecta"
@@ -85,48 +111,58 @@ const loginUsuario = (req, res) => {
             ok: true,
             mensaje: "Login exitoso",
             usuario: {
-                id: usuario.id_usuario,
-                nombre: usuario.nombre_usuario,
-                correo: usuario.correo
+                id: user.id_usuario,
+                nombre: user.nombre_usuario,
+                usuario: user.usuario,
+                correo: user.correo
             }
         });
     });
 };
 
-module.exports = {
-    registrarUsuario,
-    loginUsuario
-};
-
-
-//PARA GET todos-toditos
+/* =========================
+   OBTENER TODOS LOS USUARIOS
+========================= */
 const obtenerUsuarios = (req, res) => {
-    const sql = "SELECT id_usuario, nombre_usuario, correo FROM usuario";
+    const sql = `
+        SELECT id_usuario, nombre_usuario, apellido, correo, usuario
+        FROM usuario
+    `;
 
     connection.query(sql, (err, results) => {
         if (err) {
-            return res.status(500).json({ mensaje: "Error en servidor" });
+            return res.status(500).json({
+                ok: false,
+                mensaje: "Error al obtener usuarios"
+            });
         }
 
         return res.status(200).json({
             ok: true,
-            usuarios: results
+            datos: results
         });
     });
 };
 
 
-
-//PARA GET por ID
-
-const obtenerUsuarioPorId = (req, res) => {
+/* =========================
+   OBTENER USUARIO POR ID
+========================= */
+const obtenerUsuarioPorId = (req, res) => { /*Revisado. Era el usuario mal escrito.*/
     const { id } = req.params;
 
-    const sql = "SELECT id_usuario, nombre_usuario, correo FROM usuario WHERE id_usuario = ?";
+    const sql = `
+        SELECT id_usuario, nombre_usuario, apellido, correo, usuario 
+        FROM usuario
+        WHERE id_usuario = ?
+    `;
 
     connection.query(sql, [id], (err, results) => {
         if (err) {
-            return res.status(500).json({ mensaje: "Error en servidor" });
+            return res.status(500).json({
+                ok: false,
+                mensaje: "Error al buscar usuario"
+            });
         }
 
         if (results.length === 0) {
@@ -138,35 +174,37 @@ const obtenerUsuarioPorId = (req, res) => {
 
         return res.status(200).json({
             ok: true,
-            usuario: results[0]
+            datos: results[0]
         });
     });
 };
 
 
-//PARA PUT-Actualizar
-
+/* =========================
+   ACTUALIZAR USUARIO
+========================= */
 const actualizarUsuario = (req, res) => {
     const { id } = req.params;
-    const { nombre_usuario, correo } = req.body;
+    const {
+        nombre_usuario,
+        apellido,
+        correo
+    } = req.body;
 
     const sql = `
         UPDATE usuario 
-        SET nombre_usuario = ?, correo = ?
+        SET nombre_usuario = ?, apellido = ?, correo = ?
         WHERE id_usuario = ?
     `;
 
-    connection.query(sql,
-        [nombre_usuario, correo, id],
+    connection.query(
+        sql,
+        [nombre_usuario, apellido, correo, id],
         (err, result) => {
             if (err) {
-                return res.status(500).json({ mensaje: "Error en servidor" });
-            }
-
-            if (result.affectedRows === 0) {
-                return res.status(404).json({
+                return res.status(500).json({
                     ok: false,
-                    mensaje: "Usuario no encontrado"
+                    mensaje: "Error al actualizar usuario"
                 });
             }
 
@@ -179,23 +217,21 @@ const actualizarUsuario = (req, res) => {
 };
 
 
-
-//PARA DELETE - nota: tener atención con este
-
+/* =========================
+   ELIMINAR USUARIO
+========================= */
 const eliminarUsuario = (req, res) => {
     const { id } = req.params;
 
-    const sql = "DELETE FROM usuario WHERE id_usuario = ?";
+    const sql = `
+        DELETE FROM usuario WHERE id_usuario = ?
+    `;
 
     connection.query(sql, [id], (err, result) => {
         if (err) {
-            return res.status(500).json({ mensaje: "Error en servidor" });
-        }
-
-        if (result.affectedRows === 0) {
-            return res.status(404).json({
+            return res.status(500).json({
                 ok: false,
-                mensaje: "Usuario no encontrado"
+                mensaje: "Error al eliminar usuario"
             });
         }
 
@@ -207,9 +243,9 @@ const eliminarUsuario = (req, res) => {
 };
 
 
-
-//Ya para exportarlos todos finalmente
-
+/* =========================
+   EXPORTACIÓN CENTRALIZADA
+========================= */
 module.exports = {
     registrarUsuario,
     loginUsuario,
@@ -218,3 +254,9 @@ module.exports = {
     actualizarUsuario,
     eliminarUsuario
 };
+
+/*Nota: MUY IMPORTANTE. Verificar que cuando se mofiquen los valores de la 
+tabla de usuarios, también se hagan en eel resto del cuerpo. 
+Y también revisar que el fronted esté reicbiendo ESOS MISMOS campos 
+porque eso fue lo que nos causó muchos errores y pore so se veía otra información que no era. 
+Lo que pide el backend y el frontend debe coincidir siempre. */

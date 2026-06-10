@@ -1,15 +1,20 @@
 const express = require('express');
+const cors = require('cors');
+
 const app = express();
 
-require('./config/db');
+// middleware obligatorio
+app.use(cors({
+  origin: "http://localhost:5173"
+}));
 
 app.use(express.json());
 
-// RUTAS
+// rutas
 app.use('/api/usuarios', require('./routes/usuariosRoutes'));
 
-module.exports = app;
-
 app.get('/', (req, res) => {
-    res.send('API funcionando');
+  res.send('API funcionando');
 });
+
+module.exports = app;
