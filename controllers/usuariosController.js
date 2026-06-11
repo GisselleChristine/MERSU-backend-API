@@ -292,13 +292,13 @@ const eliminarUsuario = (req, res) => {
    EXPORTACIÓN CENTRALIZADA
 ========================= */
 module.exports = {
-    registrarUsuario,
+    registrarUsuario, /* Agregar usuario*/
     loginUsuario,
-    obtenerUsuarios,
-    obtenerUsuarioPorId,
-    buscarUsuarioPorLogin,
-    actualizarUsuario,
-    eliminarUsuario
+    obtenerUsuarios, /*Listar */
+    obtenerUsuarioPorId, /*Listar por ID */
+    buscarUsuarioPorLogin, 
+    actualizarUsuario, /*Update */
+    eliminarUsuario /*Delete */
 };
 
 /*Nota: MUY IMPORTANTE. Verificar que cuando se mofiquen los valores de la 
