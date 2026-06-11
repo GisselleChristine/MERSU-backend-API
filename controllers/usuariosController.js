@@ -181,6 +181,51 @@ const obtenerUsuarioPorId = (req, res) => { /*Revisado. Era el usuario mal escri
 
 
 /* =========================
+   BUSCAR USUARIO POR LOGIN
+========================= */
+const buscarUsuarioPorLogin = (req, res) => {
+
+    const { usuario } = req.params;
+
+    const sql = `
+        SELECT
+            id_usuario,
+            nombre_usuario,
+            apellido,
+            usuario,
+            correo
+        FROM usuario
+        WHERE usuario = ?
+        LIMIT 1
+    `;
+
+    connection.query(sql, [usuario], (err, results) => {
+
+        if (err) {
+            return res.status(500).json({
+                ok: false,
+                mensaje: "Error al buscar usuario"
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                ok: false,
+                mensaje: "Usuario no encontrado"
+            });
+        }
+
+        return res.status(200).json({
+            ok: true,
+            datos: results[0]
+        });
+
+    });
+
+};
+
+
+/* =========================
    ACTUALIZAR USUARIO
 ========================= */
 const actualizarUsuario = (req, res) => {
@@ -251,6 +296,7 @@ module.exports = {
     loginUsuario,
     obtenerUsuarios,
     obtenerUsuarioPorId,
+    buscarUsuarioPorLogin,
     actualizarUsuario,
     eliminarUsuario
 };
